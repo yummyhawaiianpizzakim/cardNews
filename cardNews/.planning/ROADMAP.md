@@ -141,7 +141,10 @@ Plans:
 3. 완료된 Stage의 결과는 접을 수 있는 패널로 유지되어 언제든 다시 볼 수 있다
 4. Claude API Key를 입력하는 인터페이스가 제공되어 API 호출을 할 수 있다
 
-**Plans:** TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 05-01-PLAN.md — Accordion pipeline UI: ResearchForm/DesignOrchestration callback props + page.tsx rewrite
 
 ---
 
@@ -153,9 +156,9 @@ Plans:
 | 2. Quality Verification | 2/2 | Complete   | 2026-03-03 |
 | 3. Structure Review | 2/2 | Complete   | 2026-03-03 |
 | 4. Design & Output | 0/4 | Complete    | 2026-03-03 |
-| 5. UI Integration | 0/0 | Not started | - |
+| 5. UI Integration | 0/1 | Not started | - |
 
 ---
 
 **Roadmap created:** 2026-03-03
-**Updated:** 2026-03-04 (Phase 4 plans added)
+**Updated:** 2026-03-04 (Phase 5 plans added)
