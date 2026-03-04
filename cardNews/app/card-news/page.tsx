@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from 'react';
 import type { CardNewsResponse, CardNewsItem } from '@/components/lib/types';
-import { ApiKeyInput } from '@/components/card-news/ApiKeyInput';
 import { ResearchForm } from '@/components/card-news/ResearchForm';
 import { ResearchResults } from '@/components/card-news/ResearchResults';
 import { CardNewsList } from '@/components/card-news/CardNewsList';
@@ -25,7 +24,6 @@ function stageBadge(status: StageStatus): { variant: 'outline' | 'secondary' | '
 }
 
 export default function CardNewsPage() {
-  const [apiKey, setApiKey] = useState('');
   const [cardNewsData, setCardNewsData] = useState<CardNewsResponse | null>(null);
   const [cards, setCards] = useState<CardNewsItem[]>([]);
   const [approvedCards, setApprovedCards] = useState<CardNewsItem[]>([]);
@@ -54,9 +52,6 @@ export default function CardNewsPage() {
           </p>
         </header>
 
-        {/* API Key always visible above accordion (UI-04) */}
-        <ApiKeyInput value={apiKey} onChange={setApiKey} />
-
         <Accordion type="multiple" value={openItems} onValueChange={setOpenItems}>
 
           {/* Stage 1: Research & Copy (UI-01, UI-02, UI-03) */}
@@ -72,7 +67,6 @@ export default function CardNewsPage() {
             <AccordionContent forceMount className="data-[state=closed]:hidden">
               <div className="space-y-6 pt-2">
                 <ResearchForm
-                  apiKey={apiKey}
                   onGenerate={handleGenerate}
                   onLoadingChange={(loading) =>
                     setStage1Status(loading ? 'loading' : (cardNewsData ? 'complete' : 'idle'))
@@ -105,7 +99,6 @@ export default function CardNewsPage() {
               <div className="pt-2">
                 <QualityLoop
                   cards={cards}
-                  apiKey={apiKey}
                   onApproved={(approved) => {
                     setCards(approved);
                     setApprovedCards(approved);
@@ -140,7 +133,6 @@ export default function CardNewsPage() {
               <div className="pt-2">
                 <StructureReview
                   cards={approvedCards}
-                  apiKey={apiKey}
                   onApplied={(updatedCards) => {
                     setApprovedCards(updatedCards);
                     setCards(updatedCards);
@@ -169,7 +161,6 @@ export default function CardNewsPage() {
               <div className="pt-2">
                 <DesignOrchestration
                   cards={approvedCards}
-                  apiKey={apiKey}
                   onCardsUpdate={(updatedCards) => {
                     setApprovedCards(updatedCards);
                     setCards(updatedCards);

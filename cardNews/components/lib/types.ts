@@ -36,7 +36,6 @@ export interface CardNewsResponse {
 export interface GenerateRequest {
   topic: string;
   audience: string;
-  apiKey: string;
 }
 
 /**

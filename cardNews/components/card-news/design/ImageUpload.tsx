@@ -9,13 +9,11 @@ import { type DesignToken } from '@/components/lib/types';
 interface ImageUploadProps {
   /** Called when image is uploaded and analyzed with design token */
   onAnalyze: (base64Image: string, designToken: DesignToken) => void;
-  /** Claude API key */
-  apiKey: string;
   /** Currently analyzing */
   isAnalyzing?: boolean;
 }
 
-export function ImageUpload({ onAnalyze, apiKey, isAnalyzing = false }: ImageUploadProps) {
+export function ImageUpload({ onAnalyze, isAnalyzing = false }: ImageUploadProps) {
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,12 +41,10 @@ export function ImageUpload({ onAnalyze, apiKey, isAnalyzing = false }: ImageUpl
   };
 
   const handleAnalyzeClick = () => {
-    if (referenceImage && apiKey) {
+    if (referenceImage) {
       onAnalyze(referenceImage, null as any); // Will trigger parent to call extractor
-    } else if (!referenceImage) {
+    } else {
       setError('이미지를 먼저 업로드해 주세요.');
-    } else if (!apiKey) {
-      setError('API 키가 필요합니다.');
     }
   };
 
@@ -106,7 +102,7 @@ export function ImageUpload({ onAnalyze, apiKey, isAnalyzing = false }: ImageUpl
                 <Button variant="outline" onClick={handleReplaceImage}>
                   이미지 변경
                 </Button>
-                <Button onClick={handleAnalyzeClick} disabled={isAnalyzing || !apiKey}>
+                <Button onClick={handleAnalyzeClick} disabled={isAnalyzing}>
                   {isAnalyzing ? '분석 중...' : '디자인 추출'}
                 </Button>
               </div>

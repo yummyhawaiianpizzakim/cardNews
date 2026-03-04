@@ -1,105 +1,74 @@
 import { NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
-import type {
-  CardNewsResponse,
-  GenerateRequest,
-} from '@/components/lib/types';
+import type { CardNewsResponse } from '@/components/lib/types';
+
+const GLM_API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+
+async function callGLM(
+  messages: Array<{ role: string; content: string }>,
+  model = 'glm-4.5-air'
+): Promise<string> {
+  const response = await fetch(GLM_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.GLM_API_KEY}`,
+    },
+    body: JSON.stringify({ model, messages, max_tokens: 4096 }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`GLM API error ${response.status}: ${err}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content as string;
+}
 
 export async function POST(req: Request) {
   try {
-    const body: GenerateRequest = await req.json();
-    const { topic, audience, apiKey } = body;
+    const body = await req.json();
+    const { topic, audience } = body;
 
-    // Validate required fields
-    if (!topic || topic.trim() === '') {
-      return NextResponse.json(
-        { error: 'Topic is required' },
-        { status: 400 }
-      );
+    if (!topic?.trim()) {
+      return NextResponse.json({ error: 'Topic is required' }, { status: 400 });
+    }
+    if (!audience?.trim()) {
+      return NextResponse.json({ error: 'Audience is required' }, { status: 400 });
+    }
+    if (!process.env.GLM_API_KEY) {
+      return NextResponse.json({ error: 'GLM API key not configured' }, { status: 500 });
     }
 
-    if (!audience || audience.trim() === '') {
-      return NextResponse.json(
-        { error: 'Audience is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!apiKey || apiKey.trim() === '') {
-      return NextResponse.json(
-        { error: 'API key is required' },
-        { status: 400 }
-      );
-    }
-
-    // Initialize Anthropic client with the API key from request
-    const anthropic = new Anthropic({
-      apiKey: apiKey,
-    });
-
-    // Configure web search tool
-    // Note: web_search is a built-in tool, no custom schema needed
-    // The beta header enables web_search functionality
-
-    // First API call: Research
-    const researchResponse = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 4096,
-      system: 'You are a research assistant. Search for at least 3 credible sources with recent statistics, examples, or case studies about the topic. Include specific URLs for citation.',
-      messages: [
-        {
-          role: 'user',
-          content: `Research the following topic for card news content: ${topic}. Target Audience: ${audience}. Search for at least 3 credible sources with recent statistics, examples, or case studies.`,
-        },
-      ],
-      // Enable web_search via beta header, no tools array needed for built-in tools
-    }, {
-      headers: {
-        'anthropic-beta': 'tools-2025-09-04',
+    const responseText = await callGLM([
+      {
+        role: 'system',
+        content:
+          '당신은 카드뉴스 전문 카피라이터입니다. 주어진 주제로 인스타그램 카드뉴스를 생성하세요.',
       },
-    });
-
-    // Extract research context from the response
-    const researchContext = researchResponse.content[0].type === 'text'
-      ? researchResponse.content[0].text
-      : '';
-
-    // Second API call: Generate card news copy
-    const copyResponse = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 4096,
-      system: 'You are a professional copywriter specializing in Instagram card news. Generate card news in the following structure: 1 cover card (hook), 4-6 body cards (each with 1 headline + 2-3 sentences), 1 CTA card. Each card: headline 1 line, subtext 2-3 lines.',
-      messages: [
-        {
-          role: 'user',
-          content: `Based on the following research, generate card news copy. Topic: ${topic}. Target Audience: ${audience}. Research Context: ${researchContext}. Format as JSON with 'cards' array (type, headline, subtext, order) and 'researchSources' array (title, url, summary).`,
-        },
-      ],
-    });
-
-    // Parse the JSON response
-    const responseText = copyResponse.content[0].type === 'text'
-      ? copyResponse.content[0].text
-      : '{}';
+      {
+        role: 'user',
+        content: `주제: ${topic}\n타깃 독자: ${audience}\n\n다음 형식의 JSON으로만 응답하세요:\n{"cards": [{"type": "cover"|"body"|"cta", "headline": "...", "subtext": "...", "order": 1}], "researchSources": [{"title": "...", "url": "...", "summary": "..."}]}\n\n구성: 커버 카드 1개(훅), 본문 카드 4-6개(카드당 헤드라인 1줄 + 서브텍스트 2-3줄), CTA 카드 1개. researchSources는 관련 참고 자료 2-3개.`,
+      },
+    ]);
 
     let responseData: CardNewsResponse;
     try {
-      responseData = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('Failed to parse JSON response:', responseText);
+      const jsonMatch =
+        responseText.match(/```json\n([\s\S]*?)\n```/) ||
+        responseText.match(/(\{[\s\S]*\})/);
+      const raw = jsonMatch ? jsonMatch[1].trim() : responseText.trim();
+      responseData = JSON.parse(raw);
+    } catch {
       return NextResponse.json(
         { error: 'Failed to parse AI response. Please try again.' },
         { status: 500 }
       );
     }
 
-    // Return the structured response
     return NextResponse.json(responseData);
   } catch (error) {
-    console.error('Anthropic API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate card news. Please check your API key and try again.' },
-      { status: 500 }
-    );
+    console.error('GLM API error:', error);
+    return NextResponse.json({ error: 'Failed to generate card news.' }, { status: 500 });
   }
 }

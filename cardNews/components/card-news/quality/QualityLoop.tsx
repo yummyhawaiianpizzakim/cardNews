@@ -21,8 +21,6 @@ import type { CardNewsItem } from '@/components/lib/types';
 interface QualityLoopProps {
   /** Cards to evaluate */
   cards: CardNewsItem[];
-  /** Claude API key */
-  apiKey: string;
   /** Called when cards are approved (quality >= 75) */
   onApproved: (cards: CardNewsItem[]) => void;
   /** Called when max loops reached without approval */
@@ -101,29 +99,21 @@ ${cardSummary}
 
 // ─── Claude API helper ────────────────────────────────────────────────────────
 
-async function callClaude(apiKey: string, prompt: string): Promise<string> {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+async function callGLM(prompt: string): Promise<string> {
+  const response = await fetch('/api/chat', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] }),
   });
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`Claude API error ${response.status}: ${errorBody}`);
+    throw new Error(`AI API error ${response.status}: ${errorBody}`);
   }
 
   const data = await response.json();
-  return data.content[0].text as string;
+  if (data.error) throw new Error(data.error);
+  return data.text as string;
 }
 
 function parseJsonFromText(text: string): unknown {
@@ -177,23 +167,18 @@ function StatusBar({ phase, loopCount, maxLoops }: StatusBarProps) {
 
 // ─── Main QualityLoop Component ───────────────────────────────────────────────
 
-export function QualityLoop({ cards, apiKey, onApproved, onMaxLoopsReached }: QualityLoopProps) {
+export function QualityLoop({ cards, onApproved, onMaxLoopsReached }: QualityLoopProps) {
   const { state, startEvaluation, recordEvaluationResult, setError, reset } = useEvaluationSystem();
 
   const runEvaluationLoop = useCallback(
     async (currentCards: CardNewsItem[]) => {
-      if (!apiKey) {
-        setError('API 키가 필요합니다.');
-        return;
-      }
-
       startEvaluation();
 
       try {
         // ── Parallel evaluation: run both agents simultaneously ──
         const [hookingRaw, copyRaw] = await Promise.all([
-          callClaude(apiKey, buildHookingAgentPrompt(currentCards)),
-          callClaude(apiKey, buildCopyAgentPrompt(currentCards)),
+          callGLM(buildHookingAgentPrompt(currentCards)),
+          callGLM(buildCopyAgentPrompt(currentCards)),
         ]);
 
         const hookingParsed = parseJsonFromText(hookingRaw) as { score: number; comment: string };
@@ -230,7 +215,7 @@ export function QualityLoop({ cards, apiKey, onApproved, onMaxLoopsReached }: Qu
 
         // ── Rewrite: improve cards based on agent comments ──
         const comments = evaluations.map((e) => e.comment);
-        const rewriteRaw = await callClaude(apiKey, buildRewritePrompt(currentCards, comments));
+        const rewriteRaw = await callGLM(buildRewritePrompt(currentCards, comments));
         const rewriteParsed = parseJsonFromText(rewriteRaw) as { cards: CardNewsItem[] };
 
         if (!Array.isArray(rewriteParsed.cards) || rewriteParsed.cards.length === 0) {
@@ -245,7 +230,7 @@ export function QualityLoop({ cards, apiKey, onApproved, onMaxLoopsReached }: Qu
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [apiKey, state.loopCount, startEvaluation, recordEvaluationResult, setError, onApproved, onMaxLoopsReached]
+    [state.loopCount, startEvaluation, recordEvaluationResult, setError, onApproved, onMaxLoopsReached]
   );
 
   const handleStart = () => {
@@ -263,7 +248,7 @@ export function QualityLoop({ cards, apiKey, onApproved, onMaxLoopsReached }: Qu
           <CardTitle className="text-lg">품질 검수</CardTitle>
           <div className="flex gap-2">
             {state.phase === 'idle' && (
-              <Button onClick={handleStart} disabled={!apiKey || cards.length === 0}>
+              <Button onClick={handleStart} disabled={cards.length === 0}>
                 품질 검수 시작
               </Button>
             )}
@@ -315,11 +300,6 @@ export function QualityLoop({ cards, apiKey, onApproved, onMaxLoopsReached }: Qu
           </p>
         )}
 
-        {state.phase === 'idle' && !apiKey && (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            API 키를 입력해야 품질 검수를 시작할 수 있습니다.
-          </p>
-        )}
       </CardContent>
     </Card>
   );

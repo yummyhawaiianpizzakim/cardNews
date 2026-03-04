@@ -8,12 +8,11 @@ import { Progress } from '@/components/ui/progress';
 import { CardNewsResponse } from '@/components/lib/types';
 
 interface ResearchFormProps {
-  apiKey: string;
   onGenerate: (data: CardNewsResponse) => void;
   onLoadingChange?: (loading: boolean) => void;
 }
 
-export function ResearchForm({ apiKey, onGenerate, onLoadingChange }: ResearchFormProps) {
+export function ResearchForm({ onGenerate, onLoadingChange }: ResearchFormProps) {
   const [topic, setTopic] = useState('');
   const [audience, setAudience] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -43,7 +42,6 @@ export function ResearchForm({ apiKey, onGenerate, onLoadingChange }: ResearchFo
         body: JSON.stringify({
           topic: trimmedTopic,
           audience: trimmedAudience,
-          apiKey,
         }),
       });
 

@@ -1,31 +1,15 @@
 'use client';
 
 import { useCallback } from 'react';
-import Anthropic from '@anthropic-ai/sdk';
 import { type DesignToken, getDefaultDesignToken } from '@/components/lib/types';
 
 interface DesignTokenExtractorProps {
-  apiKey: string;
   base64Image: string;
   onTokenExtracted: (token: DesignToken) => void;
   onError?: (error: string) => void;
 }
 
-/**
- * Extract design tokens from reference image using Claude Vision API
- * DSGN-02: Claude Vision으로 레퍼런스 이미지를 분석한다
- * DSGN-03: 추출 항목: 주색상·보조색상, 폰트 스타일, 레이아웃 패턴, 전체 무드
- */
-export async function analyzeReferenceImage(
-  apiKey: string,
-  base64Image: string
-): Promise<DesignToken> {
-  const anthropic = new Anthropic({ apiKey });
-
-  const mediaType = base64Image.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png';
-  const imageData = base64Image.split(',')[1]; // Remove data URL prefix
-
-  const prompt = `이 이미지의 디자인 토큰을 추출하세요. 반드시 다음 JSON 형식으로만 응답하세요:
+const VISION_PROMPT = `이 이미지의 디자인 토큰을 추출하세요. 반드시 다음 JSON 형식으로만 응답하세요:
 {
   "primaryColor": "#RRGGBB",
   "secondaryColor": "#RRGGBB",
@@ -45,34 +29,26 @@ export async function analyzeReferenceImage(
 - 전체 무드 (mood): professional/playful/serious/elegant 중 하나
 - 배경색 (backgroundColor): 메인 배경색 (헥스 코드) 또는 transparent`;
 
+export async function analyzeReferenceImage(base64Image: string): Promise<DesignToken> {
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 2048,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mediaType,
-                data: imageData,
-              },
-            },
-            {
-              type: 'text',
-              text: prompt,
-            },
-          ],
-        },
-      ],
+    const response = await fetch('/api/vision', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base64Image, prompt: VISION_PROMPT }),
     });
 
-    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    if (!response.ok) {
+      console.error('Vision API error:', await response.text());
+      return getDefaultDesignToken();
+    }
 
-    // Parse JSON with fallback (following QualityLoop.tsx pattern)
+    const data = await response.json();
+    if (data.error) {
+      console.error('Vision API error:', data.error);
+      return getDefaultDesignToken();
+    }
+
+    const text = data.text as string;
     try {
       const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/(\{[\s\S]*\})/);
       const raw = jsonMatch ? jsonMatch[1].trim() : text.trim();
@@ -88,29 +64,19 @@ export async function analyzeReferenceImage(
 }
 
 export function DesignTokenExtractor({
-  apiKey,
   base64Image,
   onTokenExtracted,
   onError,
 }: DesignTokenExtractorProps) {
   const extractToken = useCallback(async () => {
-    if (!apiKey) {
-      onError?.('API 키가 필요합니다.');
-      return;
-    }
-
     try {
-      const token = await analyzeReferenceImage(apiKey, base64Image);
+      const token = await analyzeReferenceImage(base64Image);
       onTokenExtracted(token);
     } catch (error) {
       const message = error instanceof Error ? error.message : '이미지 분석에 실패했습니다.';
       onError?.(message);
     }
-  }, [apiKey, base64Image, onTokenExtracted, onError]);
+  }, [base64Image, onTokenExtracted, onError]);
 
-  // Extract when component mounts with valid image
-  // Parent component can call this if needed for manual trigger
-  return {
-    extractToken,
-  };
+  return { extractToken };
 }

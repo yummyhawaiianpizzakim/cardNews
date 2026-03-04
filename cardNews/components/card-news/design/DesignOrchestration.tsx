@@ -14,8 +14,6 @@ import { Badge } from '@/components/ui/badge';
 interface DesignOrchestrationProps {
   /** Cards from structure review */
   cards: CardNewsItem[];
-  /** API key for Claude Vision */
-  apiKey: string;
   /** Called when cards are updated */
   onCardsUpdate: (cards: CardNewsItem[]) => void;
   /** Called when design token is successfully extracted from a reference image */
@@ -28,7 +26,6 @@ interface DesignOrchestrationProps {
  */
 export function DesignOrchestration({
   cards,
-  apiKey,
   onCardsUpdate,
   onTokenExtracted,
 }: DesignOrchestrationProps) {
@@ -45,15 +42,10 @@ export function DesignOrchestration({
 
   const handleImageUpload = useCallback(
     async (base64Image: string) => {
-      if (!apiKey) {
-        setError('API 키가 필요합니다.');
-        return;
-      }
-
       setAnalyzing(true);
 
       try {
-        const token = await analyzeReferenceImage(apiKey, base64Image);
+        const token = await analyzeReferenceImage(base64Image);
         setDesignToken(token);
         onTokenExtracted?.();
       } catch (error) {
@@ -63,7 +55,7 @@ export function DesignOrchestration({
         setAnalyzing(false);
       }
     },
-    [apiKey, setDesignToken, setError, onTokenExtracted]
+    [setDesignToken, setError, onTokenExtracted]
   );
 
   const handleCardUpdate = useCallback(
@@ -113,7 +105,6 @@ export function DesignOrchestration({
       {/* Image upload section */}
       <ImageUpload
         onAnalyze={handleImageUpload}
-        apiKey={apiKey}
         isAnalyzing={analyzing}
       />
 

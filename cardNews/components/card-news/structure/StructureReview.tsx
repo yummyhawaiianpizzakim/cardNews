@@ -15,35 +15,26 @@ import type { CardNewsItem } from '@/components/lib/types';
 
 interface StructureReviewProps {
   cards: CardNewsItem[];
-  apiKey: string;
   onApplied: (updatedCards: CardNewsItem[]) => void;
 }
 
-// ─── Claude API helper (copied verbatim from QualityLoop.tsx) ─────────────────
+// ─── GLM API helper ───────────────────────────────────────────────────────────
 
-async function callClaude(apiKey: string, prompt: string): Promise<string> {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+async function callGLM(prompt: string): Promise<string> {
+  const response = await fetch('/api/chat', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] }),
   });
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`Claude API error ${response.status}: ${errorBody}`);
+    throw new Error(`AI API error ${response.status}: ${errorBody}`);
   }
 
   const data = await response.json();
-  return data.content[0].text as string;
+  if (data.error) throw new Error(data.error);
+  return data.text as string;
 }
 
 function parseJsonFromText(text: string): unknown {
@@ -151,7 +142,7 @@ function validateRawProposal(raw: RawProposal): boolean {
 
 // ─── Main StructureReview Component ──────────────────────────────────────────
 
-export function StructureReview({ cards, apiKey, onApplied }: StructureReviewProps) {
+export function StructureReview({ cards, onApplied }: StructureReviewProps) {
   const {
     state,
     startReview,
@@ -165,10 +156,6 @@ export function StructureReview({ cards, apiKey, onApplied }: StructureReviewPro
   } = useStructureSystem();
 
   const runStructureReview = useCallback(async () => {
-    if (!apiKey) {
-      setError('API 키가 필요합니다.');
-      return;
-    }
     if (cards.length === 0) {
       setError('검토할 카드가 없습니다.');
       return;
@@ -178,8 +165,8 @@ export function StructureReview({ cards, apiKey, onApplied }: StructureReviewPro
 
     try {
       const [storyRaw, retentionRaw] = await Promise.all([
-        callClaude(apiKey, buildStoryFlowPrompt(cards)),
-        callClaude(apiKey, buildRetentionPrompt(cards)),
+        callGLM(buildStoryFlowPrompt(cards)),
+        callGLM(buildRetentionPrompt(cards)),
       ]);
 
       const storyParsed = parseJsonFromText(storyRaw) as { summary: string; proposals: RawProposal[] };
@@ -233,7 +220,7 @@ export function StructureReview({ cards, apiKey, onApplied }: StructureReviewPro
     } catch (err) {
       setError(err instanceof Error ? err.message : '구조 검토 중 오류가 발생했습니다.');
     }
-  }, [apiKey, cards, startReview, setProposals, setError]);
+  }, [cards, startReview, setProposals, setError]);
 
   const handleApply = useCallback(() => {
     const updatedCards = applyAccepted(cards);
@@ -249,7 +236,7 @@ export function StructureReview({ cards, apiKey, onApplied }: StructureReviewPro
             {state.phase === 'idle' && (
               <Button
                 onClick={runStructureReview}
-                disabled={!apiKey || cards.length === 0}
+                disabled={cards.length === 0}
               >
                 구조 검토 시작
               </Button>
@@ -276,13 +263,7 @@ export function StructureReview({ cards, apiKey, onApplied }: StructureReviewPro
           </p>
         )}
 
-        {state.phase === 'idle' && cards.length > 0 && !apiKey && (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            API 키를 입력해야 구조 검토를 시작할 수 있습니다.
-          </p>
-        )}
-
-        {state.phase === 'reviewing' && <ReviewingState />}
+{state.phase === 'reviewing' && <ReviewingState />}
 
         {(state.phase === 'proposed' || state.phase === 'applying') && (
           <ProposalList
