@@ -46,5 +46,13 @@ Stage 4 is partially prepared (html2canvas and jszip dependencies installed) but
 | Client-side API calls for quality/structure | Reduces server load, enables real-time feedback | ✓ Good |
 | Four-stage pipeline | Separates concerns, enables iterative refinement | ✓ Good |
 
+## Current Milestone: v1.0 Image Output & Export
+
+**Goal:** Complete the four-stage pipeline by implementing card image generation and batch export.
+
+**Target features:**
+- Image Output (Stage 4) — Client-side 1080×1350px PNG generation per card
+- Batch Export — Download all cards as ZIP (PNG files) or single PDF
+
 ---
-*Last updated: 2026-03-04 after codebase analysis*
+*Last updated: 2026-03-04 after milestone v1.0 started*
