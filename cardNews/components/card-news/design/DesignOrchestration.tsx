@@ -18,6 +18,8 @@ interface DesignOrchestrationProps {
   apiKey: string;
   /** Called when cards are updated */
   onCardsUpdate: (cards: CardNewsItem[]) => void;
+  /** Called when design token is successfully extracted from a reference image */
+  onTokenExtracted?: () => void;
 }
 
 /**
@@ -28,6 +30,7 @@ export function DesignOrchestration({
   cards,
   apiKey,
   onCardsUpdate,
+  onTokenExtracted,
 }: DesignOrchestrationProps) {
   const { state: designState, setDesignToken, setError } = useDesignTokenSystem();
   const [analyzing, setAnalyzing] = useState(false);
@@ -52,6 +55,7 @@ export function DesignOrchestration({
       try {
         const token = await analyzeReferenceImage(apiKey, base64Image);
         setDesignToken(token);
+        onTokenExtracted?.();
       } catch (error) {
         const message = error instanceof Error ? error.message : '이미지 분석에 실패했습니다.';
         setError(message);
@@ -59,7 +63,7 @@ export function DesignOrchestration({
         setAnalyzing(false);
       }
     },
-    [apiKey, setDesignToken, setError]
+    [apiKey, setDesignToken, setError, onTokenExtracted]
   );
 
   const handleCardUpdate = useCallback(

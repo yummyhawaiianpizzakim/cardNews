@@ -10,9 +10,10 @@ import { CardNewsResponse } from '@/components/lib/types';
 interface ResearchFormProps {
   apiKey: string;
   onGenerate: (data: CardNewsResponse) => void;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
-export function ResearchForm({ apiKey, onGenerate }: ResearchFormProps) {
+export function ResearchForm({ apiKey, onGenerate, onLoadingChange }: ResearchFormProps) {
   const [topic, setTopic] = useState('');
   const [audience, setAudience] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -31,6 +32,7 @@ export function ResearchForm({ apiKey, onGenerate }: ResearchFormProps) {
     }
 
     setIsLoading(true);
+    onLoadingChange?.(true);
 
     try {
       const response = await fetch('/api/anthropic', {
@@ -56,6 +58,7 @@ export function ResearchForm({ apiKey, onGenerate }: ResearchFormProps) {
       setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
+      onLoadingChange?.(false);
     }
   };
 
