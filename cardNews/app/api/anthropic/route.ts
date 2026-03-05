@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { CardNewsResponse } from '@/components/lib/types';
 
-const GLM_API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+const GLM_API_URL = 'https://api.z.ai/api/paas/v4/chat/completions';
 
 async function callGLM(
   messages: Array<{ role: string; content: string }>,
@@ -11,7 +11,7 @@ async function callGLM(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.GLM_API_KEY}`,
+      Authorization: `${process.env.GLM_API_KEY}`,
     },
     body: JSON.stringify({ model, messages, max_tokens: 4096 }),
   });

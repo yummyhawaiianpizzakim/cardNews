@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const GLM_API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+const GLM_API_URL = 'https://api.z.ai/api/paas/v4/chat/completions';
 
 export async function POST(req: Request) {
   try {
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.GLM_API_KEY}`,
+        Authorization: `${process.env.GLM_API_KEY}`,
       },
       body: JSON.stringify({ model, messages, max_tokens: 2048 }),
     });
